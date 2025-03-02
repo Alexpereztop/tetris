@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris Retro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+    <style>
+        body { background: #000; color: #00ff00; font-family: 'Press Start 2P', cursive; text-align: center; }
+        canvas { background: black; display: block; margin: 20px auto; border: 3px solid #00ff00; }
+        .button { background: #00ff00; color: black; padding: 10px; font-size: 14px; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1 class="text-3xl font-bold mt-5">🎮 TETRIS RETRO 🎮</h1>
+    <p class="text-lg">Usa las flechas para mover las piezas. Espacio para girar.</p>
+    <button id="start" class="button">Iniciar</button>
+    <button id="pause" class="button">Pausar</button>
+    <canvas id="tetris" width="400" height="800"></canvas>
+    <p class="text-xl mt-2">Puntuación: <span id="score">0</span></p>
+    <script>
+        const canvas = document.getElementById("tetris");
+        const ctx = canvas.getContext("2d");
+        const ROWS = 25, COLS = 12, SIZE = 32;
+        let score = 0;
+        let gameInterval;
+        const scoreDisplay = document.getElementById("score");
+        
+        const COLORS = ["red", "blue", "green", "yellow", "purple", "orange", "cyan"];
+        const SHAPES = [
+            [[1, 1, 1, 1]],
+            [[1, 1], [1, 1]],
+            [[0, 1, 1], [1, 1, 0]],
+            [[1, 1, 0], [0, 1, 1]],
+            [[1, 0, 0], [1, 1, 1]],
+            [[0, 0, 1], [1, 1, 1]],
+            [[0, 1, 0], [1, 1, 1]]
+        ];
+        
+        let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+        let piece = { shape: [], x: 0, y: 0, color: "" };
+        
+        function newPiece() {
+            let type = Math.floor(Math.random() * SHAPES.length);
+            piece = { shape: SHAPES[type], x: 4, y: 0, color: COLORS[type] };
+        }
+        
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (grid[r][c]) {
+                        ctx.fillStyle = grid[r][c];
+                        ctx.fillRect(c * SIZE, r * SIZE, SIZE, SIZE);
+                        ctx.strokeStyle = "black";
+                        ctx.strokeRect(c * SIZE, r * SIZE, SIZE, SIZE);
+                    }
+                }
+            }
+        }
+        
+        function drawPiece() {
+            ctx.fillStyle = piece.color;
+            piece.shape.forEach((row, r) => {
+                row.forEach((cell, c) => {
+                    if (cell) {
+                        ctx.fillRect((piece.x + c) * SIZE, (piece.y + r) * SIZE, SIZE, SIZE);
+                        ctx.strokeStyle = "black";
+                        ctx.strokeRect((piece.x + c) * SIZE, (piece.y + r) * SIZE, SIZE, SIZE);
+                    }
+                });
+            });
+        }
+        
+        function movePiece(dx, dy) {
+            if (!collision(piece, dx, dy)) {
+                piece.x += dx;
+                piece.y += dy;
+            } else if (dy > 0) {
+                mergePiece();
+                removeLines();
+                newPiece();
+            }
+        }
+        
+        function collision(p, dx, dy) {
+            return p.shape.some((row, r) => row.some((cell, c) => 
+                cell && (grid[p.y + r + dy]?.[p.x + c + dx] || p.y + r + dy >= ROWS)
+            ));
+        }
+        
+        function mergePiece() {
+            piece.shape.forEach((row, r) => {
+                row.forEach((cell, c) => {
+                    if (cell) grid[piece.y + r][piece.x + c] = piece.color;
+                });
+            });
+        }
+        
+        function removeLines() {
+            grid = grid.filter(row => row.some(cell => !cell));
+            while (grid.length < ROWS) grid.unshift(Array(COLS).fill(0));
+            score += 10;
+            scoreDisplay.textContent = score;
+        }
+        
+        function update() {
+            movePiece(0, 1);
+            drawGrid();
+            drawPiece();
+        }
+        
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowLeft") movePiece(-1, 0);
+            if (e.key === "ArrowRight") movePiece(1, 0);
+            if (e.key === "ArrowDown") movePiece(0, 1);
+            if (e.key === " ") rotatePiece();
+        });
+        
+        function rotatePiece() {
+            let rotated = piece.shape[0].map((_, i) => piece.shape.map(row => row[i])).reverse();
+            if (!collision({ ...piece, shape: rotated }, 0, 0)) piece.shape = rotated;
+        }
+        
+        document.getElementById("start").addEventListener("click", () => {
+            if (!gameInterval) gameInterval = setInterval(update, 500);
+        });
+        
+        document.getElementById("pause").addEventListener("click", () => {
+            clearInterval(gameInterval);
+            gameInterval = null;
+        });
+        
+        newPiece();
+    </script>
+</body>
+</html>
